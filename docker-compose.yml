@@ -1,0 +1,98 @@
+version: '3.8'
+
+services:
+  keycloak:
+    image: quay.io/keycloak/keycloak:latest
+    container_name: keycloak
+    environment:
+      - KEYCLOAK_ADMIN=admin
+      - KEYCLOAK_ADMIN_PASSWORD=admin
+      - KC_DB=postgres
+      - KC_DB_URL=jdbc:postgresql://postgres:5432/keycloak
+      - KC_DB_USERNAME=keycloak
+      - KC_DB_PASSWORD=keycloak
+      - KC_HEALTH_ENABLED=true
+    command: start-dev
+    ports:
+      - "8080:8080"
+    depends_on:
+      - postgres
+    networks:
+      - sso-network
+
+  postgres:
+    image: postgres:13
+    container_name: postgres
+    environment:
+      - POSTGRES_DB=keycloak
+      - POSTGRES_USER=keycloak
+      - POSTGRES_PASSWORD=keycloak
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - sso-network
+
+  laravel-service:
+    build:
+      context: ./laravel-service
+      dockerfile: Dockerfile
+    container_name: laravel-service
+    environment:
+      - DB_CONNECTION=pgsql
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_DATABASE=laravel
+      - DB_USERNAME=laravel
+      - DB_PASSWORD=laravel
+      - KEYCLOAK_URL=http://keycloak:8080
+      - KEYCLOAK_REALM=master
+      - KEYCLOAK_CLIENT_ID=laravel-client
+      - KEYCLOAK_CLIENT_SECRET=${LARAVEL_CLIENT_SECRET}
+    ports:
+      - "8000:8000"
+    depends_on:
+      - postgres
+      - keycloak
+    networks:
+      - sso-network
+
+  golang-service:
+    build:
+      context: ./golang-service
+      dockerfile: Dockerfile
+    container_name: golang-service
+    environment:
+      - KEYCLOAK_URL=http://keycloak:8080
+      - KEYCLOAK_REALM=master
+      - KEYCLOAK_CLIENT_ID=golang-client
+      - KEYCLOAK_CLIENT_SECRET=${GOLANG_CLIENT_SECRET}
+    ports:
+      - "8081:8081"
+    depends_on:
+      - keycloak
+    networks:
+      - sso-network
+
+  springboot-service:
+    build:
+      context: ./springboot-service
+      dockerfile: Dockerfile
+    container_name: springboot-service
+    environment:
+      - KEYCLOAK_URL=http://keycloak:8080
+      - KEYCLOAK_REALM=master
+      - KEYCLOAK_CLIENT_ID=springboot-client
+      - KEYCLOAK_CLIENT_SECRET=${SPRINGBOOT_CLIENT_SECRET}
+    ports:
+      - "8082:8082"
+    depends_on:
+      - keycloak
+    networks:
+      - sso-network
+
+networks:
+  sso-network:
+    driver: bridge
+
+volumes:
+  postgres_data: 
