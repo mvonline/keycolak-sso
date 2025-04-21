@@ -5,11 +5,14 @@ WORKDIR /app
 # Install necessary build tools
 RUN apk add --no-cache gcc musl-dev
 
-# Copy go mod file
+# Copy go mod and sum files
 COPY go.mod ./
 
-# Download all dependencies and generate go.sum
-RUN go mod download && go mod tidy
+# Download dependencies and generate go.sum
+RUN go mod download && \
+    go get github.com/gorilla/mux && \
+    go get github.com/joho/godotenv && \
+    go mod tidy
 
 # Copy the source code
 COPY . .
